@@ -1,0 +1,14 @@
+interface_name: wg-vpn0
+interface_ip: 100.64.0.1/24
+oidc_endpoint: https://oidc-server/.well-known/openid-configuration
+port: 51820
+nat_enabled: true
+clients:
+  - user_id: user001
+    ip: 100.64.0.2
+    public_key: T+u5rWfvCzL2Bdapdhg64kdrGWoqDq8N9hEmEmMdpxw=
+
+# following settings should be defined in environment variables
+wg_private_key: +HJLl/PIUIldRMCXBEl78oPvsM6MfSv6CgyiJ+ytJmY=
+oidc_client_id: WBhkvMmaQ+jYXFrb
+oidc_client_secret: cNUH6wHf+rc09qYRs8QFTgnZG8CuvutRVUshD/8X5Vc
