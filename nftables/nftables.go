@@ -6,9 +6,11 @@ import (
 	"net"
 
 	"github.com/google/nftables"
+	"github.com/google/nftables/binaryutil"
 	"github.com/google/nftables/expr"
 	"github.com/mdlayher/netlink"
 	"go.uber.org/zap"
+	"golang.org/x/sys/unix"
 )
 
 type Config struct {
@@ -230,6 +232,79 @@ func (n *Nftables) addNatRule(connection *nftables.Conn, table *nftables.Table) 
 	return nil
 }
 
+func (n *Nftables) addRoutingRule(connection *nftables.Conn, table *nftables.Table, allowedIPv4 *nftables.Set) error {
+	defaultAccept := nftables.ChainPolicyAccept
+	routing := connection.AddChain(&nftables.Chain{
+		Name:     "routing-rule",
+		Table:    table,
+		Type:     nftables.ChainTypeFilter,
+		Hooknum:  nftables.ChainHookForward,
+		Priority: nftables.ChainPriorityFilter,
+		Policy:   &defaultAccept,
+	})
+	connection.AddRule(&nftables.Rule{
+		Table: table,
+		Chain: routing,
+		Exprs: []expr.Any{
+			// [ payload load 4b @ network header + 12 => reg 1 ]
+			&expr.Payload{
+				DestRegister: 1,
+				Base:         expr.PayloadBaseNetworkHeader,
+				Offset:       12,
+				Len:          4,
+			},
+			&expr.Range{
+				Op:       expr.CmpOpEq,
+				Register: 1,
+				FromData: getStartIP(n.Config.VPNInterfaceIP),
+				ToData:   getEndIP(n.Config.VPNInterfaceIP),
+			},
+			// [ meta load l4proto => reg 1 ]
+			&expr.Meta{Key: expr.MetaKeyL4PROTO, Register: 1},
+			// [ cmp eq reg 1 0x00000006 ]
+			&expr.Cmp{
+				Op:       expr.CmpOpEq,
+				Register: 1,
+				Data:     []byte{unix.IPPROTO_TCP},
+			},
+			// [ payload load 1b @ transport header + 13 => reg 1 ]
+			&expr.Payload{
+				DestRegister: 1,
+				Base:         expr.PayloadBaseTransportHeader,
+				Offset:       13,
+				Len:          1,
+			},
+			// [ bitwise reg 1 = (reg=1 & 0x00000002 ) ^ 0x00000000 ]
+			&expr.Bitwise{
+				DestRegister:   1,
+				SourceRegister: 1,
+				Len:            1,
+				Mask:           []byte{0x02},
+				Xor:            []byte{0x00},
+			},
+			// [ cmp neq reg 1 0x00000000 ]
+			&expr.Cmp{
+				Op:       expr.CmpOpNeq,
+				Register: 1,
+				Data:     []byte{0x00},
+			},
+			// [ immediate reg 1 0x0000ae08 ]
+			&expr.Immediate{
+				Register: 1,
+				Data:     binaryutil.BigEndian.PutUint16(1300),
+			},
+			&expr.Exthdr{
+				SourceRegister: 1,
+				Type:           2,
+				Offset:         2,
+				Len:            2,
+				Op:             expr.ExthdrOpTcpopt,
+			},
+		},
+	})
+	return nil
+}
+
 func (n *Nftables) InitNftable() error {
 	connection := &nftables.Conn{
 		TestDial: n.TestDial,
@@ -244,6 +319,10 @@ func (n *Nftables) InitNftable() error {
 		return err
 	}
 	err = n.addFilterRule(connection, table, allowedIPv4) // Drop NOT allowed IPs rule
+	if err != nil {
+		return err
+	}
+	err = n.addRoutingRule(connection, table, allowedIPv4)
 	if err != nil {
 		return err
 	}
