@@ -198,7 +198,7 @@ func (n *Nftables) addNatRule(connection *nftables.Conn, table *nftables.Table) 
 
 	defaultAccept := nftables.ChainPolicyAccept
 	nat := connection.AddChain(&nftables.Chain{
-		Name:     "nat",
+		Name:     "nat-rule",
 		Table:    table,
 		Type:     nftables.ChainTypeNAT,
 		Hooknum:  nftables.ChainHookPostrouting,
