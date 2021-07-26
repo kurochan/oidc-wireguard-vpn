@@ -76,11 +76,12 @@ func createWireGuard(config *InputConfig) (*wireguard.WireGuard, error) {
 }
 
 func createNetlink(config *InputConfig) (*netlink.Netlink, error) {
-	_, cidr, err := net.ParseCIDR(config.InterfaceIP)
+	ip, cidr, err := net.ParseCIDR(config.InterfaceIP)
 	if err != nil {
 		zap.L().Error(fmt.Sprintf("failed to parse IP %s", config.InterfaceIP), zap.Error(err))
 		return nil, err
 	}
+	cidr.IP = ip
 	netlink := netlink.Netlink{
 		Config: netlink.Config{
 			DeviceName: config.InterfaceName,

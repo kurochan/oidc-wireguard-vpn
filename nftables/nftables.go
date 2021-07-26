@@ -61,7 +61,7 @@ func (n *Nftables) AddAllowedIP(ip net.IP) error {
 	}
 
 	table := connection.AddTable(&nftables.Table{
-		Family: nftables.TableFamilyINet,
+		Family: nftables.TableFamilyIPv4,
 		Name:   n.Config.TableName,
 	})
 
@@ -94,7 +94,7 @@ func (n *Nftables) DeleteAllowedIP(ip net.IP) error {
 	}
 
 	table := connection.AddTable(&nftables.Table{
-		Family: nftables.TableFamilyINet,
+		Family: nftables.TableFamilyIPv4,
 		Name:   n.Config.TableName,
 	})
 
@@ -118,12 +118,12 @@ func (n *Nftables) DeleteAllowedIP(ip net.IP) error {
 
 func (n *Nftables) addTable(connection *nftables.Conn) (*nftables.Table, error) {
 	table := connection.AddTable(&nftables.Table{
-		Family: nftables.TableFamilyINet,
+		Family: nftables.TableFamilyIPv4,
 		Name:   n.Config.TableName,
 	})
 	connection.DelTable(table)
 	table = connection.AddTable(&nftables.Table{
-		Family: nftables.TableFamilyINet,
+		Family: nftables.TableFamilyIPv4,
 		Name:   n.Config.TableName,
 	})
 	if err := connection.Flush(); err != nil {
@@ -266,7 +266,7 @@ func (n *Nftables) DeleteNfTable() error {
 	}
 
 	table := connection.AddTable(&nftables.Table{
-		Family: nftables.TableFamilyINet,
+		Family: nftables.TableFamilyIPv4,
 		Name:   n.Config.TableName,
 	})
 	connection.DelTable(table)
